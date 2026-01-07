@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Zacgo Communication & Logistics — Demo</title>
+    <meta
+      name="description"
+      content="Zacgo Communication & Logistics demo page"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .animate-fade-in {
+        animation: fadeIn 1s ease both;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased bg-white">
+    <div id="root"></div>
+
+    <!-- React + ReactDOM (development) and Babel for client-side JSX -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- App (JSX compiled by Babel in the browser) -->
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      const ZacgoWebsite = () => {
+        const [currentPage, setCurrentPage] = useState("home");
+        const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+        const [formData, setFormData] = useState({
+          name: "",
+          email: "",
+          phone: "",
+          service: "",
+          message: "",
+        });
+        const [adminLogin, setAdminLogin] = useState({
+          username: "",
+          password: "",
+        });
+        const [storedAdminPassword, setStoredAdminPassword] = useState(null); // stores hashed password (hex)
+        const [showLoginPassword, setShowLoginPassword] = useState(false);
+        const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+        const [showNewPassword, setShowNewPassword] = useState(false);
+        const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+        // Hash helper using Web Crypto API
+        const hashPassword = async (plain) => {
+          try {
+            const enc = new TextEncoder();
+            const data = enc.encode(plain);
+            const hash = await crypto.subtle.digest("SHA-256", data);
+            const bytes = Array.from(new Uint8Array(hash));
+            return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+          } catch (e) {
+            return null;
+          }
+        };
+
+        // Initialize stored password (hashed). Default password is 'zacgo2024'.
+        useEffect(() => {
+          (async () => {
+            try {
+              const existing = localStorage.getItem("zacgo_admin_password");
+              if (existing) {
+                setStoredAdminPassword(existing);
+              } else {
+                const defaultHash = await hashPassword("zacgo2024");
+                localStorage.setItem("zacgo_admin_password", defaultHash);
+                setStoredAdminPassword(defaultHash);
+              }
+            } catch (e) {
+              const defaultHash = await hashPassword("zacgo2024");
+              setStoredAdminPassword(defaultHash);
+            }
+          })();
+        }, []);
+        const [isLoggedIn, setIsLoggedIn] = useState(false);
+        const [showChangePassword, setShowChangePassword] = useState(false);
+        const [passwordForm, setPasswordForm] = useState({
+          current: "",
+          newPass: "",
+          confirm: "",
+        });
+        const [requests, setRequests] = useState(() => {
+          try {
+            const saved = localStorage.getItem("zacgo_requests");
+            return saved ? JSON.parse(saved) : [];
+          } catch (e) {
+            return [];
+          }
+        });
+
+        const services = [
+          {
+            icon: "🛡️",
+            title: "NIN Registration & Services",
+            description:
+              "Quick and secure National Identification Number registration, verification, and modification services.",
+          },
+          {
+            icon: "💳",
+            title: "BVN Services",
+            description:
+              "Bank Verification Number enrollment, updates, and verification assistance for all your banking needs.",
+          },
+          {
+            icon: "📱",
+            title: "Phone Sales",
+            description:
+              "Latest smartphones from top brands at competitive prices. New and certified pre-owned devices available.",
+          },
+          {
+            icon: "📦",
+            title: "Phone Accessories",
+            description:
+              "Quality phone accessories including cases, screen protectors, chargers, power banks, and more.",
+          },
+          {
+            icon: "🎧",
+            title: "Technical Support",
+            description:
+              "Expert technical support and troubleshooting for all your telecommunication needs.",
+          },
+          {
+            icon: "👥",
+            title: "Logistics Services",
+            description:
+              "Reliable delivery and logistics solutions for your telecommunication products and documents.",
+          },
+        ];
+
+        const team = [
+          {
+            name: "Okere Gold (Mrs.)",
+            position: "CEO & Founder",
+            bio: "15+ years experience in telecommunications and logistics management.",
+            photo: "/okeregold.jpg ",
+          },
+          {
+            name: "Engr. Okere Richard",
+            position: "Head of Technology",
+            bio: "Leads the company’s technical vision and engineering efforts—defines system architecture, ensures platform reliability and security, drives the product roadmap, and mentors the engineering team to deliver scalable, high-quality solutions.",
+            photo: "/Richie.jpg",
+          },
+          {
+            name: "Mr. Isaac Josiah",
+            position: "Sales & Marketing Lead",
+            bio: "Expert in mobile technology with deep knowledge of the latest devices.",
+            photo: "/Isaac.jpeg",
+          },
+          {
+            name: "Gift Temple (Mrs.)",
+            position: "Logistics Coordinator",
+            bio: "Ensures timely and secure delivery of all products and services.",
+            photo: "/okeregift.jpg",
+          },
+        ];
+
+        const handleFormChange = (e) =>
+          setFormData({ ...formData, [e.target.name]: e.target.value });
+
+        const handleFormSubmit = (e) => {
+          e.preventDefault();
+          const serviceLabels = {
+            nin: "NIN Registration & Services",
+            bvn: "BVN Services",
+            phone: "Phone Sales",
+            accessories: "Phone Accessories",
+            support: "Technical Support",
+            logistics: "Logistics Services",
+          };
+          const newReq = {
+            id: Date.now(),
+            name: formData.name || "Anonymous",
+            email: formData.email || "",
+            phone: formData.phone || "",
+            service:
+              serviceLabels[formData.service] ||
+              formData.service ||
+              "Not specified",
+            message: formData.message || "",
+            date: new Date().toLocaleString(),
+            status: "Pending",
+          };
+          const next = [...requests, newReq];
+          setRequests(next);
+          try {
+            localStorage.setItem("zacgo_requests", JSON.stringify(next));
+          } catch (e) {}
+          alert(
+            "Service request submitted successfully! We will contact you shortly."
+          );
+          setFormData({
+            name: "",
+            email: "",
+            phone: "",
+            service: "",
+            message: "",
+          });
+        };
+
+        const handleAdminLogin = async (e) => {
+          e.preventDefault();
+          const { username, password } = adminLogin;
+          if (!storedAdminPassword) {
+            alert("Please wait...");
+            return;
+          }
+          const hashed = await hashPassword(password || "");
+          if (username === "admin" && hashed === storedAdminPassword) {
+            setIsLoggedIn(true);
+            alert("Login successful!");
+          } else {
+            alert("Invalid credentials");
+          }
+        };
+
+        const handleChangePassword = async (e) => {
+          e.preventDefault();
+          if (passwordForm.newPass !== passwordForm.confirm) {
+            alert("New passwords do not match");
+            return;
+          }
+          if (!storedAdminPassword) {
+            alert("Please wait...");
+            return;
+          }
+          const currentHash = await hashPassword(passwordForm.current || "");
+          if (currentHash !== storedAdminPassword) {
+            alert("Current password is incorrect");
+            return;
+          }
+          const newHash = await hashPassword(passwordForm.newPass || "");
+          try {
+            localStorage.setItem("zacgo_admin_password", newHash);
+          } catch (err) {}
+          setStoredAdminPassword(newHash);
+          setAdminLogin({ ...adminLogin, password: passwordForm.newPass });
+          setPasswordForm({ current: "", newPass: "", confirm: "" });
+          setShowChangePassword(false);
+          alert("Password changed successfully");
+        };
+
+        const markRequestCompleted = (id) => {
+          const next = requests.map((r) =>
+            r.id === id ? { ...r, status: "Completed" } : r
+          );
+          setRequests(next);
+          try {
+            localStorage.setItem("zacgo_requests", JSON.stringify(next));
+          } catch (e) {}
+        };
+
+        const renderHome = () => (
+          <div>
+            <div
+              className="bg-gradient-to-br from-pink-500 via-indigo-500 to-emerald-400 text-white py-24 px-4"
+              style={{ backgroundBlendMode: "multiply" }}
+            >
+              <div className="max-w-6xl mx-auto text-center">
+                <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
+                  Zacgo Communication & Logistics
+                </h1>
+                <p className="text-xl md:text-2xl mb-8 opacity-90">
+                  Your trusted partner in telecommunications and identity
+                  services
+                </p>
+                <button
+                  onClick={() => setCurrentPage("request")}
+                  className="bg-white text-blue-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Request Service Now
+                </button>
+              </div>
+            </div>
+
+            <div className="py-20 px-4 bg-gray-50">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
+                  Our Services
+                </h2>
+                <div className="grid md:grid-cols-3 gap-8">
+                  {services.slice(0, 3).map((service, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2"
+                    >
+                      <div className="text-blue-600 mb-4 text-4xl">
+                        {service.icon}
+                      </div>
+                      <h3 className="text-xl font-bold mb-3 text-gray-800">
+                        {service.title}
+                      </h3>
+                      <p className="text-gray-600">{service.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-center mt-12">
+                  <button
+                    onClick={() => setCurrentPage("services")}
+                    className="text-blue-600 font-semibold text-lg hover:text-blue-700"
+                  >
+                    View All Services →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="py-20 px-4">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
+                  Why Choose Zacgo?
+                </h2>
+                <div className="grid md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">⚡</div>
+                    <h3 className="font-bold text-lg mb-2">Fast Service</h3>
+                    <p className="text-gray-600">
+                      Quick turnaround on all requests
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🔒</div>
+                    <h3 className="font-bold text-lg mb-2">Secure</h3>
+                    <p className="text-gray-600">Your data is safe with us</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">💯</div>
+                    <h3 className="font-bold text-lg mb-2">Reliable</h3>
+                    <p className="text-gray-600">Trusted by thousands</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🎯</div>
+                    <h3 className="font-bold text-lg mb-2">Professional</h3>
+                    <p className="text-gray-600">Expert team at your service</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+        const renderServices = () => (
+          <div className="py-20 px-4 bg-gradient-to-r from-amber-400 via-rose-400 to-fuchsia-500 min-h-screen text-white">
+            <div className="max-w-6xl mx-auto">
+              <h1 className="text-5xl font-bold text-center mb-6 text-white">
+                Our Services
+              </h1>
+              <p className="text-xl text-center mb-16 text-amber-100 max-w-3xl mx-auto">
+                Comprehensive telecommunication and logistics solutions tailored
+                to your needs
+              </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {services.map((service, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2"
+                  >
+                    <div className="text-blue-600 mb-6 text-4xl">
+                      {service.icon}
+                    </div>
+                    <h3 className="text-2xl font-bold mb-4 text-gray-800">
+                      {service.title}
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      {service.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+        const renderRequest = () => (
+          <div className="py-20 px-4 bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-100 min-h-screen">
+            <div className="max-w-2xl mx-auto">
+              <h1 className="text-5xl font-bold text-center mb-6 text-gray-800">
+                Request a Service
+              </h1>
+              <p className="text-center mb-12 text-gray-600 text-lg">
+                Fill out the form below and we'll get back to you within 24
+                hours
+              </p>
+              <form
+                onSubmit={handleFormSubmit}
+                className="bg-white p-10 rounded-2xl shadow-2xl"
+              >
+                <div className="mb-6">
+                  <label className="block text-gray-700 font-semibold mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-gray-700 font-semibold mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="your.email@example.com"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-gray-700 font-semibold mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="+234 XXX XXX XXXX"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-gray-700 font-semibold mb-2">
+                    Service Required
+                  </label>
+                  <select
+                    name="service"
+                    value={formData.service}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">Select a service</option>
+                    <option value="nin">NIN Registration & Services</option>
+                    <option value="bvn">BVN Services</option>
+                    <option value="phone">Phone Sales</option>
+                    <option value="accessories">Phone Accessories</option>
+                    <option value="support">Technical Support</option>
+                    <option value="logistics">Logistics Services</option>
+                  </select>
+                </div>
+                <div className="mb-8">
+                  <label className="block text-gray-700 font-semibold mb-2">
+                    Additional Details
+                  </label>
+                  <textarea
+                    name="message"
+                    value={formData.message}
+                    onChange={handleFormChange}
+                    rows="4"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Tell us more about your requirements..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-lg font-semibold text-lg"
+                >
+                  Submit Request
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+
+        const renderTeam = () => (
+          <div className="py-20 px-4 bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-100 min-h-screen text-gray-900">
+            <div className="max-w-6xl mx-auto">
+              <h1 className="text-5xl font-bold text-center mb-6 text-gray-900">
+                Meet Our Team
+              </h1>
+              <p className="text-xl text-center mb-16 text-gray-700 max-w-3xl mx-auto">
+                Dedicated professionals committed to delivering excellence in
+                every interaction
+              </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {team.map((member, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-2"
+                  >
+                    <div className="h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={member.photo}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold mb-2 text-gray-800">
+                        {member.name}
+                      </h3>
+                      <p className="text-blue-600 font-semibold mb-3">
+                        {member.position}
+                      </p>
+                      <p className="text-gray-600">{member.bio}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+        const renderContact = () => (
+          <div className="py-20 px-4 bg-gradient-to-br from-sky-600 via-indigo-700 to-blue-900 min-h-screen text-white">
+            <div className="max-w-5xl mx-auto">
+              <h1 className="text-5xl font-bold text-center mb-6 text-white">
+                Contact Us
+              </h1>
+              <p className="text-xl text-center mb-16 text-blue-100">
+                We're here to help. Reach out to us through any of these
+                channels
+              </p>
+              <div className="grid md:grid-cols-3 gap-8">
+                <div className="bg-white p-8 rounded-xl shadow-2xl text-center transform hover:scale-105 transition-all">
+                  <div className="text-4xl mx-auto mb-4">📞</div>
+                  <h3 className="text-xl font-bold mb-3 text-gray-800">
+                    Phone
+                  </h3>
+                  <p className="text-gray-600">+234 810 435 8281</p>
+                  <p className="text-gray-600">+234 706 723 5355</p>
+                  <p className="text-gray-600">+234 906 368 3555 </p>
+                </div>
+                <div className="bg-white p-8 rounded-xl shadow-2xl text-center transform hover:scale-105 transition-all">
+                  <div className="text-4xl mx-auto mb-4">✉️</div>
+                  <h3 className="text-xl font-bold mb-3 text-gray-800">
+                    Email
+                  </h3>
+                  <p className="text-gray-600">gold4dnation@gmail.com</p>
+                </div>
+                <div className="bg-white p-8 rounded-xl shadow-2xl text-center transform hover:scale-105 transition-all">
+                  <div className="text-4xl mx-auto mb-4">📍</div>
+                  <h3 className="text-xl font-bold mb-3 text-gray-800">
+                    Location
+                  </h3>
+                  <p className="text-gray-600">
+                    1, Avu junction, Along Portharcourt Road
+                  </p>
+                  <p className="text-gray-600">Owerri, Imo State</p>
+                </div>
+              </div>
+              <div className="mt-12 bg-white p-8 rounded-xl shadow-2xl">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
+                  Business Hours
+                </h2>
+                <div className="grid md:grid-cols-2 gap-6 text-center">
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-2">
+                      Monday - Friday
+                    </p>
+                    <p className="text-gray-600">8:00 AM - 6:00 PM</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-2">Saturday</p>
+                    <p className="text-gray-600">9:00 AM - 4:00 PM</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+        const renderAdmin = () => {
+          if (!isLoggedIn)
+            return (
+              <div className="py-20 px-4 bg-gradient-to-r from-slate-50 via-slate-100 to-white min-h-screen flex items-center justify-center">
+                <div className="bg-white p-10 rounded-2xl shadow-2xl max-w-md w-full">
+                  <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+                    Admin Login
+                  </h1>
+                  <div>
+                    <div className="mb-6">
+                      <label className="block text-gray-700 font-semibold mb-2">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={adminLogin.username}
+                        onChange={(e) =>
+                          setAdminLogin({
+                            ...adminLogin,
+                            username: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        placeholder="Enter username"
+                      />
+                    </div>
+                    <div className="mb-8">
+                      <label className="block text-gray-700 font-semibold mb-2">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showLoginPassword ? "text" : "password"}
+                          value={adminLogin.password}
+                          onChange={(e) =>
+                            setAdminLogin({
+                              ...adminLogin,
+                              password: e.target.value,
+                            })
+                          }
+                          onKeyPress={(e) =>
+                            e.key === "Enter" && handleAdminLogin(e)
+                          }
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                          placeholder="Enter password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowLoginPassword(!showLoginPassword)
+                          }
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600"
+                          aria-label="Toggle password visibility"
+                        >
+                          {showLoginPassword ? "🙈" : "👁️"}
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleAdminLogin}
+                      className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all"
+                    >
+                      Login
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+
+          return (
+            <div className="py-20 px-4 bg-gradient-to-r from-slate-50 via-slate-100 to-white min-h-screen">
+              <div className="max-w-6xl mx-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="text-4xl font-bold text-gray-800">
+                    Admin Dashboard
+                  </h1>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setShowChangePassword(!showChangePassword)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    >
+                      Change Password
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsLoggedIn(false);
+                        setAdminLogin({ username: "", password: "" });
+                        setShowChangePassword(false);
+                        setPasswordForm({
+                          current: "",
+                          newPass: "",
+                          confirm: "",
+                        });
+                      }}
+                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+                {showChangePassword && (
+                  <div className="mb-6 bg-white p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Change Password
+                    </h3>
+                    <form onSubmit={handleChangePassword}>
+                      <div className="mb-3">
+                        <label className="block text-sm mb-1">
+                          Current Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showCurrentPassword ? "text" : "password"}
+                            value={passwordForm.current}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                current: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowCurrentPassword(!showCurrentPassword)
+                            }
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600"
+                            aria-label="Toggle current password visibility"
+                          >
+                            {showCurrentPassword ? "🙈" : "👁️"}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <label className="block text-sm mb-1">
+                          New Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordForm.newPass}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                newPass: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600"
+                            aria-label="Toggle new password visibility"
+                          >
+                            {showNewPassword ? "🙈" : "👁️"}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <label className="block text-sm mb-1">
+                          Confirm New Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={passwordForm.confirm}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                confirm: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600"
+                            aria-label="Toggle confirm password visibility"
+                          >
+                            {showConfirmPassword ? "🙈" : "👁️"}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          type="submit"
+                          className="bg-green-600 text-white px-4 py-2 rounded"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowChangePassword(false);
+                            setPasswordForm({
+                              current: "",
+                              newPass: "",
+                              confirm: "",
+                            });
+                          }}
+                          className="bg-gray-200 px-4 py-2 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+                <div className="grid md:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 className="text-gray-600 mb-2">Total Requests</h3>
+                    <p className="text-4xl font-bold text-blue-600">
+                      {requests.length}
+                    </p>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 className="text-gray-600 mb-2">Pending</h3>
+                    <p className="text-4xl font-bold text-orange-600">
+                      {requests.filter((r) => r.status === "Pending").length}
+                    </p>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 className="text-gray-600 mb-2">Completed</h3>
+                    <p className="text-4xl font-bold text-green-600">
+                      {requests.filter((r) => r.status === "Completed").length}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-lg p-8">
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">
+                    Recent Service Requests
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200">
+                          <th className="text-left py-3 px-4">Name</th>
+                          <th className="text-left py-3 px-4">Service</th>
+                          <th className="text-left py-3 px-4">Date</th>
+                          <th className="text-left py-3 px-4">Status</th>
+                          <th className="text-left py-3 px-4">Actions</th>
+                        </tr>
+                      </thead>
+                      {requests.length === 0 ? (
+                        <tbody>
+                          <tr>
+                            <td
+                              className="py-6 px-4 text-center text-gray-600"
+                              colSpan="5"
+                            >
+                              No service requests yet.
+                            </td>
+                          </tr>
+                        </tbody>
+                      ) : (
+                        <tbody>
+                          {requests.map((r) => (
+                            <tr key={r.id} className="border-b border-gray-100">
+                              <td className="py-3 px-4">{r.name}</td>
+                              <td className="py-3 px-4">{r.service}</td>
+                              <td className="py-3 px-4">{r.date}</td>
+                              <td className="py-3 px-4">
+                                <span
+                                  className={
+                                    r.status === "Completed"
+                                      ? "bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"
+                                      : r.status === "Pending"
+                                      ? "bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm"
+                                      : "bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                                  }
+                                >
+                                  {r.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                {r.status !== "Completed" ? (
+                                  <button
+                                    onClick={() => markRequestCompleted(r.id)}
+                                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                                  >
+                                    Mark Completed
+                                  </button>
+                                ) : (
+                                  <span className="text-sm text-gray-600">
+                                    —
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const renderPage = () => {
+          switch (currentPage) {
+            case "home":
+              return renderHome();
+            case "services":
+              return renderServices();
+            case "request":
+              return renderRequest();
+            case "team":
+              return renderTeam();
+            case "contact":
+              return renderContact();
+            case "admin":
+              return renderAdmin();
+            default:
+              return renderHome();
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-white">
+            <nav className="bg-white shadow-lg sticky top-0 z-50">
+              <div className="max-w-7xl mx-auto px-4">
+                <div className="flex justify-between items-center py-4">
+                  <div
+                    className="flex items-center space-x-3 cursor-pointer"
+                    onClick={() => setCurrentPage("home")}
+                  >
+                    <img
+                      src="/Zacgocommunications.jpg"
+                      alt="Zacgo Communication & Logistics"
+                      className="h-10 w-auto"
+                    />
+                    <span className="hidden md:inline text-lg font-semibold text-gray-800">
+                      Zacgo Communication
+                    </span>
+                  </div>
+
+                  <div className="hidden md:flex space-x-8">
+                    {[
+                      "home",
+                      "services",
+                      "request",
+                      "team",
+                      "contact",
+                      "admin",
+                    ].map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`capitalize font-semibold transition-colors ${
+                          currentPage === page
+                            ? "text-blue-600"
+                            : "text-gray-700 hover:text-blue-600"
+                        }`}
+                      >
+                        {page === "request" ? "Request Service" : page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    className="md:hidden text-gray-700"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  >
+                    {mobileMenuOpen ? "✖" : "☰"}
+                  </button>
+                </div>
+                {mobileMenuOpen && (
+                  <div className="md:hidden pb-4">
+                    {[
+                      "home",
+                      "services",
+                      "request",
+                      "team",
+                      "contact",
+                      "admin",
+                    ].map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => {
+                          setCurrentPage(page);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`block w-full text-left py-3 px-4 capitalize font-semibold ${
+                          currentPage === page
+                            ? "text-blue-600 bg-blue-50"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {page === "request" ? "Request Service" : page}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </nav>
+
+            {renderPage()}
+
+            <footer className="bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 text-white py-12 px-4">
+              <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
+                <div>
+                  <h3 className="text-xl font-bold mb-4">
+                    Zacgo Communication
+                  </h3>
+                  <p className="text-gray-400">
+                    Your trusted partner in telecommunications and logistics
+                    services.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-4">Quick Links</h3>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setCurrentPage("services")}
+                      className="block text-gray-400 hover:text-white"
+                    >
+                      Services
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage("request")}
+                      className="block text-gray-400 hover:text-white"
+                    >
+                      Request Service
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage("contact")}
+                      className="block text-gray-400 hover:text-white"
+                    >
+                      Contact
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-4">Connect With Us</h3>
+                  <p className="text-gray-400 mb-2">📞 +234 810 4358 281</p>
+                  <p className="text-gray-400 mb-2">
+                    ✉️ gold4dnation@gmail.com
+                  </p>
+                  <p className="text-gray-400">📍 Owerri, Imo State</p>
+                </div>
+              </div>
+              <div className="max-w-6xl mx-auto mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
+                <p>
+                  &copy; 2026 Zacgo Communication & Logistics. All rights
+                  reserved.
+                </p>
+              </div>
+            </footer>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<ZacgoWebsite />);
+    </script>
+  </body>
+</html>
